@@ -56,6 +56,12 @@
             "default": [
 
             ]
+        },
+        "pushMessageInForwardMessage": {
+            "title": "使用合并转发推送微博",
+            "description": "开启此功能后，将微博推送放入合并转发信息中再发送，以避免微博推送过长影响群聊消息观感",
+            "type": "boolean",
+            "default": false
         }
     }
 }

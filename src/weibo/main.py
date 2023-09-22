@@ -4,8 +4,13 @@ import time
 import asyncio
 import re
 
+from typing import Union, Optional
+
 from amiyabot import TencentBotInstance
 from amiyabot.builtin.message import MessageStructure
+
+from amiyabot.adapters.mirai import MiraiBotInstance,MiraiForwardMessage
+from amiyabot.adapters.cqhttp import CQHttpBotInstance, CQHTTPForwardMessage
 
 from core.database.group import GroupSetting
 from core.database.messages import *
@@ -197,12 +202,37 @@ async def _(_):
             else:
                 data.image(result.pics_list).text(f'\n\n{result.detail_url}')
 
+            async def send_message():
+                if (bot.get_config('pushMessageInForwardMessage')):
+                    adapter_type = type(instance.instance)
+
+                    fakemsg = Message(instance=instance.instance) #两种ForwardMessage在实例化时都必须传入一个Message
+                    fakemsg.channel_id = item.group_id
+                    fakemsg.bot = bot
+                    #fakemsg.factory_name = ''
+                    fwuserid = instance.instance.appid
+                    fwnkname = f'amiyabot-微博推送'
+
+                    fm: Union[MiraiForwardMessage,CQHTTPForwardMessage]
+                    if (adapter_type is MiraiBotInstance):
+                        fm = MiraiForwardMessage(fakemsg)
+                        await fm.add_message(data,fwuserid,fwnkname,int(time.time()))
+                        await fm.send()
+                    elif (adapter_type is CQHttpBotInstance):
+                        fm = CQHTTPForwardMessage(fakemsg)
+                        await fm.add_message(data,fwuserid,fwnkname)
+                        await fm.send()
+                    else:
+                        await instance.send_message(data, channel_id=item.group_id)
+                else:
+                    await instance.send_message(data, channel_id=item.group_id)
+
             if bot.get_config('sendAsync'):
                 async_send_tasks.append(
-                    instance.send_message(data, channel_id=item.group_id)
+                    send_message()
                 )
             else:
-                await instance.send_message(data, channel_id=item.group_id)
+                await send_message()
                 await asyncio.sleep(bot.get_config('sendInterval'))
 
         if async_send_tasks:
